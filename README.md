@@ -1,9 +1,9 @@
 ## PubGate Vkontakte -> ActivityPub bridge
-Extension for [PubGate](https://github.com/autogestion/pubgate), federates Telegram channels and back
+Extension for [PubGate](https://github.com/autogestion/pubgate), federates posts from Vkontakte public group wall
               
 Requires PubGate >= 0.2.19
 ## Deploy
-Create Vkontakte public group and generatea access token
+Create Vkontakte public group and create access token
 ###### Install Docker + Docker Compose
 #### Shell
 ```
@@ -15,7 +15,7 @@ cp -r config/extensions_sample_conf.cfg config/conf.cfg
 EXTENSIONS = [..., "vkfed"]
 VK_POLLING_TIMEOUT = 3
 ```
-This will connect Vkontakte Group to PubGate server. To connect it to Fediverse, setup PubGate AP account.
+This will create bridge skeleton. To establish connection(s), setup PubGate AP account(s).
 Account could be created on deploy by adding next value to config/conf.cfg or later via API (described below)
 ```
 USER_ON_DEPLOY = """{
