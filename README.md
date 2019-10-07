@@ -1,9 +1,11 @@
 ## PubGate Vkontakte -> ActivityPub bridge
 Extension for [PubGate](https://github.com/autogestion/pubgate), federates posts from Vkontakte public group wall
-              
-Requires PubGate >= 0.2.19
+
+Requires PubGate >= 0.2.20
 ## Deploy
-Create Vkontakte public group and create access token
+For targeted Vkontakte public group, create access token, 
+enable Long Poll API in Settings -> API usage, and allow Event types -> Wall posts -> New
+
 ###### Install Docker + Docker Compose
 #### Shell
 ```
@@ -33,7 +35,10 @@ USER_ON_DEPLOY = """{
     },
     "details": {
         "vkbot": {
-            "groups": [{"<group_id>": {"access_token: "<access_token>"}}],                                    
+            "groups": [{
+                 "group_id": "<group id>",
+                 "access_token": "<access token>"
+                 }],                                   
             "enable": true,
             "tags": ["vkontakte", "bridge"]                              
         }

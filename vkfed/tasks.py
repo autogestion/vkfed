@@ -11,27 +11,16 @@ from pubgate.contrib.parsers import process_tags
 
 async def run_vk_bot(app):
 
-    session = TokenSession(access_token='')
-    active_bots = await User.find(filter={"details.vkbot.enable": True})
-    api = API(session)
-
-    # for bot in active_bots.objects:
-    lp = BotsLongPoll(api, mode=2, group_id=187260572)  # default wait=25
-    result = await lp.wait()
-    result
-
-
-
     bot_swarm = []
     active_bots = await User.find(filter={"details.vkbot.enable": True})
-    for bot in active_bots:
+    for bot in active_bots.objects:
         bot_unit = {
             "bot": bot,
             "groups": []
         }
-        for group_id,  params in bot["details"]["tgbot"]["groups"]:
-            session = TokenSession(access_token=params["access_token"])
-            lp = BotsLongPoll(session, mode=2, group_id=group_id)
+        for group in bot["details"]["vkbot"]["groups"]:
+            session = TokenSession(access_token=group["access_token"])
+            lp = BotsLongPoll(session, mode=2, group_id=group["group_id"])
             # TODO handle last updates on restart
             # if "ts" in params:
             #     lp.ts = params["ts"]
@@ -40,45 +29,49 @@ async def run_vk_bot(app):
 
     while True:
         for bot_unit in bot_swarm:
+            bot = bot_unit["bot"]
+
             for group in bot_unit['groups']:
-
                 result = await group.wait()
+                updates = result['updates']
+                for update in updates:
+                    if update["type"] == 'wall_post_new':
+                        post = update["object"]
 
-                content = result.text
-                published = result.date.replace(microsecond=0).isoformat() + "Z"
+                        attachments = []
+                        if post.get('attachments'):
+                            for row_attachment in post['attachments']:
+                                if row_attachment['type'] == 'photo':
+                                    attachments.append({
+                                        "type": "Document",
+                                        "mediaType": "image/jpeg",
+                                        "url": row_attachment['photo']["photo_807"],
+                                        "name": "null"
+                                    })
 
-                attachment = []
-                if result.photo:
-                    attachment = [{
-                        "type": "Document",
-                        "mediaType": "image/jpeg",
-                        "url": f'{app.base_url}/media/{photo_id}',
-                        "name": "null"
-                    }]
+                        # process tags
+                        extra_tag_list = []
+                        if bot["details"]["vkbot"]["tags"]:
+                            extra_tag_list.extend(bot["details"]["vkbot"]["tags"])
+                        content, footer_tags, object_tags = process_tags(
+                            extra_tag_list, post['text']
+                        )
+                        body = f"{content}{footer_tags}"
 
-                    # process tags
-                    extra_tag_list = []
-                    if bot["details"]["vkbot"]["tags"]:
-                        extra_tag_list.extend(bot["details"]["vkbot"]["tags"])
-                    content, footer_tags, object_tags = process_tags(extra_tag_list, content)
-                    body = f"{content}{footer_tags}"
-
-                    activity = Create(bot, {
-                        "type": "Create",
-                        "cc": [],
-                        "published": published,
-                        "object": {
-                            "type": "Note",
-                            "summary": None,
-                            "sensitive": False,
-                            "content": body,
-                            "published": published,
-                            "attachment": attachment,
-                            "tag": object_tags
-                        }
-                    })
-                    await activity.save(tg_sent=True)
-                    await activity.deliver()
-                    logger.info(f"vkontakte entry '{result.id}' of {bot.name} federating")
+                        activity = Create(bot, {
+                            "type": "Create",
+                            "cc": [],
+                            "object": {
+                                "type": "Note",
+                                "summary": None,
+                                "sensitive": False,
+                                "content": body,
+                                "attachment": attachments,
+                                "tag": object_tags
+                            }
+                        })
+                        await activity.save(tg_sent=True)
+                        await activity.deliver()
+                        logger.info(f"vkontakte entry '{post['id']}' of {bot.name} federating")
 
         await asyncio.sleep(app.config.VK_POLLING_TIMEOUT)
